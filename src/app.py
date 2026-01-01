@@ -1,7 +1,7 @@
 import streamlit as st
 
-from src.rag import rag_answer
-from src.search import secure_search
+from rag import rag_answer
+from search import secure_search
 
 st.set_page_config(
     page_title="Secure RAG Demo",
