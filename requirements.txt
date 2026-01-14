@@ -8,3 +8,5 @@ langchain-community
 google-generativeai
 requests
 streamlit
+langchain-chroma
+pyjwt

@@ -1,72 +1,111 @@
 import streamlit as st
 
-from rag import rag_answer
-from search import secure_search
+from auth import create_jwt, decode_jwt
+from auth_service import authenticate_user
+from security import get_access_level_from_role
+from factory import get_rag_strategy, get_llm
+from pipeline import run_pipeline
 
+
+# =============================
+# Page config
+# =============================
 st.set_page_config(
-    page_title="Secure RAG Demo",
-    layout="centered"
+    page_title="Secure RAG System",
+    layout="wide"
 )
 
-st.title("🔐 Secure RAG Demonstration")
+st.title("🔐 Secure RAG Question Answering System")
 st.markdown(
     """
-This application demonstrates a **Retrieval-Augmented Generation (RAG)** system
-with **access control** applied *before* any language model generation.
+Secure RAG system with **JWT-based authentication**.
+User permissions are derived **automatically from identity**.
 """
 )
 
-# ================= USER INPUT =================
-question = st.text_input(
-    "Enter your question:",
-    placeholder="e.g. What are the payment terms?"
+# =============================
+# SIDEBAR — LOGIN
+# =============================
+st.sidebar.header("🔐 Login")
+
+username = st.sidebar.text_input("Username")
+password = st.sidebar.text_input("Password", type="password")
+
+if st.sidebar.button("Login"):
+    role = authenticate_user(username, password)
+
+    if role is None:
+        st.sidebar.error("Invalid credentials")
+    else:
+        token = create_jwt(username, role)
+        st.session_state["jwt"] = token
+        st.sidebar.success("Authentication successful")
+
+st.sidebar.markdown("---")
+
+# =============================
+# AUTH CHECK
+# =============================
+if "jwt" not in st.session_state:
+    st.warning("Please authenticate to access the system.")
+    st.stop()
+
+try:
+    payload = decode_jwt(st.session_state["jwt"])
+except Exception as e:
+    st.error(str(e))
+    st.stop()
+
+user_role = payload["role"]
+user_access_level = get_access_level_from_role(user_role)
+
+st.sidebar.info(f"Role: **{user_role}**")
+st.sidebar.info(f"Access level: **{user_access_level}**")
+
+# =============================
+# SYSTEM CONFIG
+# =============================
+st.sidebar.header("⚙️ Configuration")
+
+rag_strategy_name = st.sidebar.selectbox(
+    "RAG strategy",
+    ["simple", "secure", "hybrid", "modular"]
 )
 
-user_access_level = st.selectbox(
-    "Select user access level:",
-    ["public", "internal", "confidential"]
+llm_name = st.sidebar.selectbox(
+    "LLM model",
+    ["ollama", "openai", "gemini"]
 )
 
-k = st.slider(
-    "Number of retrieved documents:",
-    min_value=1,
-    max_value=5,
-    value=3
+# =============================
+# MAIN INPUT
+# =============================
+question = st.text_area(
+    "❓ Enter your question",
+    height=120
 )
 
-submit = st.button("Submit query")
+if st.button("🚀 Ask"):
+    if not question.strip():
+        st.warning("Please enter a question.")
+    else:
+        with st.spinner("Processing..."):
+            rag = get_rag_strategy(rag_strategy_name)
+            llm = get_llm(llm_name)
 
-# ================= PROCESS =================
-if submit and question:
-    with st.spinner("Processing request..."):
-        # 1️⃣ Recherche sécurisée
-        documents = secure_search(
-            query=question,
-            user_access_level=user_access_level,
-            k=k
-        )
-
-        if not documents:
-            st.warning("No authorized information allows answering this question.")
-        else:
-            # 2️⃣ Génération RAG
-            answer = rag_answer(
+            answer, sources = run_pipeline(
                 question=question,
                 user_access_level=user_access_level,
-                k=k
+                rag=rag,
+                llm=llm
             )
 
-            st.success("Answer generated successfully!")
-            st.markdown("### 💬 Generated Answer")
+            st.subheader("📌 Answer")
             st.write(answer)
 
-            # ================= SOURCES =================
-            with st.expander("📄 View authorized source documents"):
-                for i, doc in enumerate(documents, 1):
-                    st.markdown(f"**Document {i}**")
-                    st.markdown(f"- Access level: `{doc.metadata.get('access_level')}`")
-                    st.markdown(doc.page_content)
-                    st.markdown("---")
-
-elif submit:
-    st.warning("Please enter a question.")
+            if sources:
+                st.subheader("📚 Authorized sources")
+                for i, doc in enumerate(sources, start=1):
+                    with st.expander(f"Document {i}"):
+                        st.write(doc.page_content)
+                        st.json(doc.metadata)
