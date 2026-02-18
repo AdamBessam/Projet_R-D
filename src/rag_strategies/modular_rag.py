@@ -8,7 +8,7 @@ class ModularRAG(RAGStrategy):
     - prêt pour query rewriting
     """
 
-    def retrieve(self, query, user_access_level):
+    def retrieve(self, query, user_access_level="public"):
         # étape 1 : recherche large
         docs = secure_search(
             query=query,

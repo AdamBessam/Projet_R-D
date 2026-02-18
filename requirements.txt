@@ -10,3 +10,10 @@ requests
 streamlit
 langchain-chroma
 pyjwt
+bcrypt
+pytest
+rank-bm25
+scikit-learn
+numpy
+plotly
+altair

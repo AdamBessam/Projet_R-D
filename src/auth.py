@@ -2,7 +2,13 @@ import os
 import jwt
 from datetime import datetime, timedelta
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "SUPER_SECRET_KEY")
+# Require explicit JWT secret for security
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise EnvironmentError(
+        "Environment variable JWT_SECRET_KEY must be set. Do not use default secrets in production."
+    )
+
 ALGORITHM = "HS256"
 TOKEN_EXPIRATION_HOURS = 1
 

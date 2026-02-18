@@ -6,11 +6,11 @@ class SimpleRAG(RAGStrategy):
     RAG simple basé uniquement sur la recherche sémantique.
     """
 
-    def retrieve(self, query, user_access_level):
+    def retrieve(self, query, user_access_level="public", k=3):
         return secure_search(
             query=query,
             user_access_level=user_access_level,
-            k=3
+            k=k
         )
 
     def build_prompt(self, query, documents):

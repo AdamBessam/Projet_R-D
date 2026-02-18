@@ -8,7 +8,7 @@ class HybridRAG(RAGStrategy):
     - re-classement lexical
     """
 
-    def retrieve(self, query, user_access_level):
+    def retrieve(self, query, user_access_level="public"):
         docs = secure_search(
             query=query,
             user_access_level=user_access_level,

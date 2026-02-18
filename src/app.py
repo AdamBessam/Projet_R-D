@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 import streamlit as st
 
 from auth import create_jwt, decode_jwt
@@ -59,8 +65,18 @@ except Exception as e:
 user_role = payload["role"]
 user_access_level = get_access_level_from_role(user_role)
 
+st.sidebar.info(f"👤 User: **{payload['sub']}**")
 st.sidebar.info(f"Role: **{user_role}**")
 st.sidebar.info(f"Access level: **{user_access_level}**")
+
+# Logout button
+if st.sidebar.button("🚪 Logout", type="primary"):
+    # Clear session state
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
+st.sidebar.markdown("---")
 
 # =============================
 # SYSTEM CONFIG

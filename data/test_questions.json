@@ -1,0 +1,110 @@
+[
+  {
+    "id": 1,
+    "question": "Quel est le montant total du contrat de marketing territorial du municipio de Cisneros?",
+    "expected_answer": "Le montant total du contrat est de 38 millions de pesos (38000000 pesos).",
+    "ground_truth_short": "38000000",
+    "expected_duration": "9 meses",
+    "access_level": "confidential",
+    "category": "financial",
+    "difficulty": "medium",
+    "relevant_doc_ids": ["contracts_cisneros"],
+    "relevance_scores": [3, 0, 0]
+  },
+  {
+    "id": 2,
+    "question": "Quelle est la durée du contrat de services audiovisuels d'Acacías?",
+    "expected_answer": "La durée du contrat est de 8 mois (ocho meses).",
+    "ground_truth_short": "8 meses",
+    "expected_value": "24576000",
+    "access_level": "internal",
+    "category": "duration",
+    "difficulty": "easy",
+    "relevant_doc_ids": ["contracts_acacias"],
+    "relevance_scores": [3, 0, 0]
+  },
+  {
+    "id": 3,
+    "question": "Quel est le montant du contrat de l'hôpital San Juan de Dios de Riosucio?",
+    "expected_answer": "Le montant du contrat est de 468 millions de pesos (468000000 pesos).",
+    "ground_truth_short": "468000000",
+    "expected_duration": "hasta el 30 de junio de 2023",
+    "access_level": "internal",
+    "category": "financial",
+    "difficulty": "easy",
+    "relevant_doc_ids": ["contracts_hospital_riosucio"],
+    "relevance_scores": [3, 1, 0]
+  },
+  {
+    "id": 4,
+    "question": "Combien de paiements mensuels sont prévus pour le contrat d'Acacías?",
+    "expected_answer": "Le contrat prévoit 6 paiements mensuels de 3072000 pesos chacun.",
+    "ground_truth_short": "6",
+    "expected_payment_value": "3072000",
+    "access_level": "internal",
+    "category": "payment_terms",
+    "difficulty": "medium",
+    "relevant_doc_ids": ["contracts_acacias"],
+    "relevance_scores": [3, 1, 0]
+  },
+  {
+    "id": 5,
+    "question": "Quelles sont les obligations du contratista dans le contrat de l'hôpital?",
+    "expected_answer": "Les obligations incluent le respect des normes de biosécurité, la réalisation des tâches d'entretien et de nettoyage, et le paiement de la sécurité sociale.",
+    "expected_keywords": ["bioseguridad", "aseo", "mantenimiento", "seguridad social"],
+    "access_level": "internal",
+    "category": "obligations",
+    "difficulty": "hard",
+    "relevant_doc_ids": ["contracts_hospital_riosucio"],
+    "relevance_scores": [3, 2, 1]
+  },
+  {
+    "id": 6,
+    "question": "Quel est le pourcentage de garantie de cumplimiento requis?",
+    "expected_answer": "Le pourcentage de garantie de cumplimiento requis est de 10% du montant total du contrat.",
+    "ground_truth_short": "10%",
+    "access_level": "internal",
+    "category": "guarantees",
+    "difficulty": "medium",
+    "relevant_doc_ids": ["contracts_general"],
+    "relevance_scores": [3, 2, 1]
+  },
+  {
+    "id": 7,
+    "question": "Combien de contrats confidentiels sont disponibles dans la base de données?",
+    "expected_answer": "Il y a un contrat confidentiel dans la base de données.",
+    "ground_truth_short": "1",
+    "access_level": "admin",
+    "category": "metadata",
+    "difficulty": "easy",
+    "relevant_doc_ids": ["contracts_cisneros"],
+    "relevance_scores": [3]
+  },
+  {
+    "id": 8,
+    "question": "Quelle est la loi principale qui régit ces contrats?",
+    "expected_answer": "Les lois principales qui régissent ces contrats sont la Ley 80 de 1993 et la Ley 1150 de 2007.",
+    "expected_keywords": ["Ley 80 de 1993", "Ley 1150 de 2007"],
+    "access_level": "public",
+    "category": "legal_framework",
+    "difficulty": "easy",
+    "relevant_doc_ids": ["contracts_general"],
+    "relevance_scores": [3, 3, 2]
+  },
+  {
+    "id": 9,
+    "question": "Quel est le NIT de l'hôpital San Juan de Dios?",
+    "expected_answer": "890801989-5",
+    "access_level": "internal",
+    "category": "identification",
+    "difficulty": "easy"
+  },
+  {
+    "id": 10,
+    "question": "Quelles sont les activités d'aseo mentionnées dans le contrat de l'hôpital?",
+    "expected_keywords": ["barrer", "trapear", "lavar", "brillar pisos"],
+    "access_level": "internal",
+    "category": "technical_details",
+    "difficulty": "medium"
+  }
+]

@@ -7,12 +7,16 @@ class SecureRAG(RAGStrategy):
     - refus explicite
     - pas de génération sans documents autorisés
     """
+    
+    def __init__(self, llm=None, user_access_level="public"):
+        super().__init__(llm)
+        self.default_access_level = user_access_level
 
-    def retrieve(self, query, user_access_level):
+    def retrieve(self, query, user_access_level="public", k=5):
         documents = secure_search(
             query=query,
             user_access_level=user_access_level,
-            k=5
+            k=k
         )
 
         if not documents:
