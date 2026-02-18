@@ -2,8 +2,40 @@
 
 Projet R&D de système Retrieval-Augmented Generation (RAG) sécurisé pour répondre à des questions sur des documents contractuels juridiques, avec contrôle d'accès par rôles et support de multiples modèles LLM.
 
+---
+
+## 🚀 Démarrage Rapide
+
+**Nouveau sur ce projet ?** Suivez le guide d'installation complet : **[INSTALLATION.md](INSTALLATION.md)**
+
+### Installation en 5 minutes
+
+```bash
+# 1. Cloner et installer
+git clone <URL_DU_REPO>
+cd rag_legal_project
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 2. Configurer MySQL (XAMPP)
+# → Démarrer MySQL dans XAMPP Control Panel
+python scripts/setup_database.py
+python scripts/seed_users.py
+
+# 3. Lancer l'application
+streamlit run src/app.py
+```
+
+**Test rapide** : Connectez-vous avec `admin` / `admin123` sur http://localhost:8501
+
+📖 **Guide complet** : [INSTALLATION.md](INSTALLATION.md)
+
+---
+
 ## 📋 Table des matières
 
+- [Démarrage Rapide](#-démarrage-rapide)
 - [Contexte du projet](#contexte-du-projet)
 - [Architecture](#architecture)
 - [Comparatif des modèles LLM](#comparatif-des-modèles-llm)
@@ -13,6 +45,7 @@ Projet R&D de système Retrieval-Augmented Generation (RAG) sécurisé pour rép
 - [Utilisation](#utilisation)
 - [Tests](#tests)
 - [Sécurité](#sécurité)
+- [Gestion des Utilisateurs](#gestion-des-utilisateurs)
 
 ## 🎯 Contexte du projet
 
@@ -371,6 +404,117 @@ Implémentation : [src/search.py](src/search.py#L23-L29)
 | **Total (s)** | **1.5-3.5** | **1.5-3.5** | **1.5-3.5** |
 
 *Temps de génération dépend fortement du LLM choisi et de la longueur du prompt.*
+
+---
+
+## 👥 Gestion des Utilisateurs
+
+### Utilisateurs par Défaut
+
+Après l'installation, 3 comptes sont créés automatiquement :
+
+| Utilisateur | Mot de passe | Rôle | Niveau d'accès | Accès aux documents |
+|-------------|--------------|------|----------------|---------------------|
+| **alice** | alice123 | guest | public | ✅ Public uniquement |
+| **bob** | bob123 | employee | internal | ✅ Public + Internal |
+| **admin** | admin123 | admin | confidential | ✅ Tous (Public + Internal + Confidential) |
+
+### Ajouter un Nouvel Utilisateur
+
+#### **Option 1 : Mode Interactif (Recommandé)**
+
+```bash
+python scripts/add_user.py
+```
+
+Le script vous guidera étape par étape :
+```
+🔐 AJOUT D'UN NOUVEL UTILISATEUR
+👤 Nom d'utilisateur: charlie
+🔑 Mot de passe: charlie123
+👥 Choisir un rôle (1-3): 2
+📧 Email: charlie@company.com
+✅ Utilisateur 'charlie' créé avec succès !
+```
+
+#### **Option 2 : Mode Ligne de Commande**
+
+```bash
+python scripts/add_user.py <username> <password> <role> [email]
+```
+
+**Exemple** :
+```bash
+python scripts/add_user.py charlie charlie123 employee charlie@company.com
+```
+
+#### **Option 3 : Programmatiquement**
+
+```python
+from scripts.add_user import add_user
+
+add_user("david", "david123", "admin", "david@company.com")
+```
+
+### Rôles et Permissions
+
+| Rôle | Niveau d'accès | Cas d'usage |
+|------|----------------|-------------|
+| **guest** | `public` | Utilisateurs externes, invités, consultants |
+| **employee** | `internal` | Employés de l'entreprise, utilisateurs standards |
+| **admin** | `confidential` | Managers, direction, juristes habilités |
+
+### Modifier un Utilisateur Existant
+
+#### **Changer le mot de passe**
+
+Via MySQL/phpMyAdmin :
+```sql
+UPDATE users 
+SET password_hash = '$2b$12$...'  -- Utiliser bcrypt pour hasher
+WHERE username = 'bob';
+```
+
+⚠️ **Important** : Le mot de passe doit être hashé avec bcrypt !
+
+#### **Changer le rôle**
+
+```sql
+UPDATE users 
+SET role = 'admin' 
+WHERE username = 'bob';
+```
+
+#### **Désactiver un utilisateur**
+
+```sql
+UPDATE users 
+SET is_active = FALSE 
+WHERE username = 'alice';
+```
+
+### Lister Tous les Utilisateurs
+
+```bash
+python scripts/check_mysql_setup.py
+```
+
+Ou via MySQL :
+```sql
+SELECT id, username, role, email, is_active, last_login 
+FROM users 
+ORDER BY id;
+```
+
+### Supprimer un Utilisateur
+
+```sql
+DELETE FROM users WHERE username = 'charlie';
+```
+
+⚠️ **Attention** : Cette action est irréversible !
+
+---
 
 ## 🛠️ Développement
 

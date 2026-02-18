@@ -17,3 +17,4 @@ scikit-learn
 numpy
 plotly
 altair
+mysql-connector-python
