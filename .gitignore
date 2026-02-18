@@ -29,3 +29,9 @@ Thumbs.db
 # ================= IDE =================
 .vscode/
 .idea/
+
+# ================= Documentation =================
+# Ignorer tous les fichiers .md
+*.md
+# Sauf README.md
+!README.md
