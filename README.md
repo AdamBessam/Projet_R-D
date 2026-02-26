@@ -566,4 +566,4 @@ def get_llm(name: str):
 
 ## Licence
 
-Projet développé dans un cadre R&D académique — Flavien Vernier.
+Projet développé dans un cadre R&D académique .
