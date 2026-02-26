@@ -1,7 +1,7 @@
 langchain
 chromadb
 sentence-transformers
-openai
+langchain-huggingface
 tqdm
 python-dotenv
 langchain-community
@@ -15,6 +15,7 @@ pytest
 rank-bm25
 scikit-learn
 numpy
+pandas
 plotly
 altair
 mysql-connector-python

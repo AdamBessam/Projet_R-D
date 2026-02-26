@@ -1,564 +1,569 @@
-# Secure RAG Legal Project
+# RAG Intelligence — Système RAG Sécurisé
 
-Projet R&D de système Retrieval-Augmented Generation (RAG) sécurisé pour répondre à des questions sur des documents contractuels juridiques, avec contrôle d'accès par rôles et support de multiples modèles LLM.
-
----
-
-## 🚀 Démarrage Rapide
-
-**Nouveau sur ce projet ?** Suivez le guide d'installation complet : **[INSTALLATION.md](INSTALLATION.md)**
-
-### Installation en 5 minutes
-
-```bash
-# 1. Cloner et installer
-git clone <URL_DU_REPO>
-cd rag_legal_project
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-# 2. Configurer MySQL (XAMPP)
-# → Démarrer MySQL dans XAMPP Control Panel
-python scripts/setup_database.py
-python scripts/seed_users.py
-
-# 3. Lancer l'application
-streamlit run src/app.py
-```
-
-**Test rapide** : Connectez-vous avec `admin` / `admin123` sur http://localhost:8501
-
-📖 **Guide complet** : [INSTALLATION.md](INSTALLATION.md)
+Projet R&D d'un système **Retrieval-Augmented Generation (RAG) sécurisé** pour répondre à des questions sur des documents contractuels, avec contrôle d'accès par rôles et support de multiples modèles LLM locaux et cloud.
 
 ---
 
-## 📋 Table des matières
+## Table des matières
 
-- [Démarrage Rapide](#-démarrage-rapide)
-- [Contexte du projet](#contexte-du-projet)
-- [Architecture](#architecture)
-- [Comparatif des modèles LLM](#comparatif-des-modèles-llm)
-- [Comparatif des stratégies RAG](#comparatif-des-stratégies-rag)
-- [Installation](#installation)
-- [Configuration](#configuration)
+- [Présentation du projet](#présentation-du-projet)
+- [Architecture globale](#architecture-globale)
+- [Structure des fichiers](#structure-des-fichiers)
+- [Modèles LLM supportés](#modèles-llm-supportés)
+- [Stratégies RAG](#stratégies-rag)
+- [Système de sécurité et contrôle d'accès](#système-de-sécurité-et-contrôle-daccès)
+- [Base documentaire](#base-documentaire)
+- [Pipeline RAG — Fonctionnement détaillé](#pipeline-rag--fonctionnement-détaillé)
+- [Support Multi-LLM — Pattern Factory](#support-multi-llm--pattern-factory)
+- [Installation et démarrage](#installation-et-démarrage)
 - [Utilisation](#utilisation)
-- [Tests](#tests)
-- [Sécurité](#sécurité)
-- [Gestion des Utilisateurs](#gestion-des-utilisateurs)
+- [Gestion des utilisateurs](#gestion-des-utilisateurs)
+- [Ajouter un LLM ou une stratégie RAG](#ajouter-un-llm-ou-une-stratégie-rag)
 
-## 🎯 Contexte du projet
+---
 
-Ce projet répond à la problématique de recherche et d'analyse dans des bases documentaires juridiques avec des contraintes de sécurité et de confidentialité. Il combine :
+## Présentation du projet
 
-- **Modèles de langage à grande échelle (LLM)** : pour générer des réponses en langage naturel
-- **Retrieval-Augmented Generation (RAG)** : pour ancrer les réponses dans des documents factuels
-- **Contrôle d'accès granulaire** : pour respecter les droits d'accès selon les utilisateurs
+Ce projet répond à la problématique suivante :
+
+> *Comment permettre à des utilisateurs avec des droits d'accès différents de poser des questions sur une base documentaire confidentielle, en combinant de manière flexible n'importe quel LLM avec n'importe quelle stratégie RAG ?*
 
 ### Fonctionnalités principales
 
-- ✅ Ingestion et préparation de corpus de clauses contractuelles
-- ✅ Création d'embeddings et indexation vectorielle (ChromaDB)
-- ✅ Recherche sémantique avec filtrage par niveau d'accès
-- ✅ 4 stratégies RAG modulaires (simple, secure, hybrid, modular)
-- ✅ Support de 3 LLM providers (OpenAI, Ollama local, Gemini)
-- ✅ Interface utilisateur Streamlit avec authentification JWT
-- ✅ Tests unitaires et configuration de sécurité
+- Ingestion et indexation vectorielle de documents contractuels (ChromaDB)
+- 4 stratégies RAG modulaires et interchangeables
+- 4 LLMs supportés (3 locaux via Ollama + 1 cloud via API)
+- Authentification JWT + MySQL + bcrypt
+- Contrôle d'accès hiérarchique (public / internal / confidential)
+- Interface Streamlit moderne avec sélection dynamique LLM × RAG
+- Fallback intelligent : si aucun document autorisé, le LLM répond uniquement sur son rôle
 
-## 🏗️ Architecture
+---
 
-```
-┌─────────────────┐
-│  UI Streamlit   │ ← Authentification JWT
-└────────┬────────┘
-         │
-    ┌────▼─────────────────────────────┐
-    │   Pipeline RAG (pipeline.py)     │
-    └────┬─────────────────────┬───────┘
-         │                     │
-    ┌────▼──────────┐    ┌────▼────────┐
-    │ RAG Strategy  │    │  LLM Adapter│
-    │ (4 variants)  │    │ (3 providers)│
-    └────┬──────────┘    └─────────────┘
-         │
-    ┌────▼────────────────┐
-    │  Search + Security  │ ← Filtrage ACL
-    └────┬────────────────┘
-         │
-    ┌────▼────────┐
-    │  ChromaDB   │ ← Base vectorielle
-    └─────────────┘
-```
-
-### Structure du projet
+## Architecture globale
 
 ```
-rag_legal_project/
+Utilisateur (Streamlit)
+        │
+        ▼
+  Authentification JWT
+  (username + password → MySQL → bcrypt → token)
+        │
+        ▼
+  Niveau d'accès déterminé
+  (guest → public | employee → internal | admin → confidential)
+        │
+        ▼
+  Pipeline RAG (pipeline.py)
+  ┌─────────────────────────────────────────┐
+  │  1. RAG Strategy → retrieve(question)   │
+  │     → secure_search() → ChromaDB        │
+  │     → filtre par niveau d'accès         │
+  │                                         │
+  │  2. Si documents trouvés :              │
+  │     → build_prompt(question, docs)      │
+  │     → llm.generate(prompt)              │
+  │                                         │
+  │  3. Si aucun document autorisé :        │
+  │     → system_prompt (rôle assistant)    │
+  │     → llm.generate(system_prompt+query) │
+  └─────────────────────────────────────────┘
+        │
+        ▼
+  Réponse + Sources affichées dans Streamlit
+```
+
+---
+
+## Structure des fichiers
+
+```
+Projet_R-D/
 ├── src/
-│   ├── app.py                  # Interface Streamlit
-│   ├── pipeline.py             # Orchestration RAG
-│   ├── search.py               # Recherche sécurisée
-│   ├── ingestion.py            # Indexation documents
-│   ├── prepare_corpus.py       # Préparation corpus
-│   ├── auth.py / auth_service.py / security.py  # Authentification
-│   ├── llms/                   # Adaptateurs LLM
-│   │   ├── base.py
-│   │   ├── openai_llm.py
-│   │   ├── ollama_llm.py
-│   │   └── gemini_llm.py
-│   └── rag_strategies/         # Stratégies RAG
-│       ├── simple_rag.py
-│       ├── secure_rag.py
-│       ├── hybrid_rag.py
-│       └── modular_rag.py
+│   ├── app.py                    # Interface Streamlit (UI principale)
+│   ├── pipeline.py               # Orchestration du pipeline RAG
+│   ├── factory.py                # Factory Pattern (LLM + RAG)
+│   ├── search.py                 # Recherche vectorielle sécurisée
+│   ├── ingestion.py              # Indexation documents → ChromaDB
+│   ├── prepare_corpus.py         # Classification des documents par accès
+│   ├── auth.py                   # Création/décodage JWT
+│   ├── auth_service.py           # Authentification MySQL + bcrypt
+│   ├── security.py               # Mapping rôle → niveau d'accès
+│   ├── db_config.py              # Connexion MySQL
+│   ├── reranker.py               # Cross-Encoder reranking
+│   ├── evaluation_metrics.py     # Métriques d'évaluation RAG
+│   ├── benchmark.py              # Benchmark LLM × RAG × questions
+│   ├── benchmark_app.py          # Dashboard Streamlit des benchmarks
+│   │
+│   ├── llms/                     # Adaptateurs LLM
+│   │   ├── base.py               # Classe abstraite LLM
+│   │   ├── mistral.py            # Mistral via Ollama (local)
+│   │   ├── llama.py              # Llama 3.1 8B via Ollama (local)
+│   │   ├── qwen.py               # Qwen3 8B via Ollama (local)
+│   │   └── gemini_llm.py         # Gemini 2.5 Flash via API Google
+│   │
+│   └── rag_strategies/           # Stratégies RAG
+│       ├── base.py               # Classe abstraite RAGStrategy
+│       ├── simple_rag.py         # Recherche sémantique basique
+│       ├── secure_rag.py         # Avec refus explicite si non autorisé
+│       ├── hybrid_rag.py         # Sémantique + lexical
+│       ├── modular_rag.py        # Architecture extensible
+│       └── reranking_rag.py      # Avec Cross-Encoder reranking
+│
 ├── data/
-│   ├── contracts.jsonl         # Corpus brut
-│   └── contracts_with_access.jsonl  # Corpus avec ACL
-├── db/                         # Base vectorielle ChromaDB
-├── tests/                      # Tests unitaires
-└── scripts/                    # Scripts utilitaires
+│   ├── contracts.jsonl                # Corpus brut
+│   ├── contracts_with_access.jsonl    # Corpus avec niveaux d'accès (521 docs)
+│   └── test_questions.json            # Questions pour benchmark
+│
+├── db/                           # Base vectorielle ChromaDB (persistante)
+├── reports/                      # Résultats de benchmark
+├── scripts/                      # Scripts utilitaires
+│   ├── setup_database.py         # Création base MySQL
+│   ├── seed_users.py             # Création utilisateurs par défaut
+│   ├── add_user.py               # Ajout interactif d'utilisateur
+│   └── hash_password.py          # Utilitaire bcrypt
+├── tests/
+│   ├── test_search.py            # Tests logique ACL
+│   └── test_rag.py               # Tests génération prompt
+├── .env                          # Variables d'environnement
+└── requirements.txt              # Dépendances Python
 ```
 
-## 🤖 Comparatif des modèles LLM
+---
+
+## Modèles LLM supportés
+
+Tous les LLMs partagent la même interface abstraite (`generate(prompt) → str`) ce qui permet de les interchanger sans modifier le reste du code.
+
+### Mistral — `src/llms/mistral.py`
+
+- **Modèle** : `mistral` (7B paramètres)
+- **Fournisseur** : Ollama (local, `http://localhost:11434`)
+- **Coût** : Gratuit (100% local)
+- **Confidentialité** : Maximale (aucune donnée envoyée à l'extérieur)
+- **Téléchargement** : `ollama pull mistral`
+
+### Llama 3.1 — `src/llms/llama.py`
+
+- **Modèle** : `llama3.1:8b` (8B paramètres)
+- **Fournisseur** : Ollama (local)
+- **Coût** : Gratuit
+- **Points forts** : Excellent en anglais, bon équilibre vitesse/qualité
+- **Téléchargement** : `ollama pull llama3.1:8b`
+
+### Qwen3 — `src/llms/qwen.py`
+
+- **Modèle** : `qwen3:8b` (8B paramètres)
+- **Fournisseur** : Ollama (local)
+- **Coût** : Gratuit
+- **Points forts** : Multilingue, mode "thinking" désactivé (`think: false`)
+- **Téléchargement** : `ollama pull qwen3:8b`
+
+### Gemini 2.5 Flash — `src/llms/gemini_llm.py`
+
+- **Modèle** : `gemini-2.5-flash`
+- **Fournisseur** : API Google (cloud)
+- **Coût** : Quota gratuit généreux
+- **Points forts** : Contexte 1M tokens, très rapide
+- **Requis** : `GEMINI_API_KEY` dans `.env`
 
 ### Tableau comparatif
 
-| Critère | OpenAI (GPT-4o-mini) | Ollama (Mistral local) | Gemini (2.5-flash) |
-|---------|---------------------|------------------------|-------------------|
-| **Coût** | ~0.15$/1M tokens (entrée) | Gratuit (auto-hébergé) | Gratuit (API quota) |
-| **Latence** | 1-3s (API externe) | 5-15s (local, dépend CPU/RAM) | 1-2s (API externe) |
-| **Qualité réponse** | ⭐⭐⭐⭐⭐ Excellent | ⭐⭐⭐⭐ Très bon | ⭐⭐⭐⭐⭐ Excellent |
-| **Confidentialité** | ⚠️ Données envoyées à OpenAI | ✅ 100% local | ⚠️ Données envoyées à Google |
-| **Limite contexte** | 128K tokens | 4K-32K (selon modèle) | 1M tokens |
-| **RAM requise** | N/A (API) | 4-8 GB minimum | N/A (API) |
-| **Scalabilité** | ✅ Élastique | ⚠️ Limitée par hardware | ✅ Élastique |
-| **Maintenance** | ✅ Gérée par OpenAI | ⚠️ Mises à jour manuelles | ✅ Gérée par Google |
+| Critère | Mistral | Llama 3.1 | Qwen3 | Gemini |
+|---------|---------|-----------|-------|--------|
+| Hébergement | Local | Local | Local | Cloud |
+| Coût | Gratuit | Gratuit | Gratuit | Quota gratuit |
+| Confidentialité | Maximale | Maximale | Maximale | Données envoyées à Google |
+| RAM requise | ~5 GB | ~6 GB | ~6 GB | N/A |
+| Latence | 5-15s | 5-15s | 5-15s | 1-2s |
+| Multilingue | Oui | Oui | Excellent | Oui |
 
-### Recommandations d'usage
+---
 
-**OpenAI GPT-4o-mini** 
-- ✅ Production avec budget
-- ✅ Qualité maximale requise
-- ❌ Données ultra-sensibles
+## Stratégies RAG
 
-**Ollama (Mistral)**
-- ✅ Développement/test
-- ✅ Confidentialité maximale
-- ✅ Pas de coûts récurrents
-- ❌ Infrastructure limitée
+Toutes les stratégies héritent de `RAGStrategy` et implémentent `retrieve()` et `build_prompt()`.
 
-**Gemini 2.5-flash**
-- ✅ Prototypage rapide
-- ✅ Contextes très longs
-- ✅ Quota gratuit généreux
-- ❌ Dépendance à Google
+### 1. Simple RAG — `simple_rag.py`
 
-### Implémentation dans le projet
+**Principe** : Recherche sémantique uniquement, retourne les k=5 documents les plus proches.
 
-Tous les LLM sont abstraits via l'interface `LLM` ([src/llms/base.py](src/llms/base.py)) permettant de changer de provider sans modifier le code métier :
-
-```python
-# Factory pattern pour sélection dynamique
-llm = get_llm("openai")  # ou "ollama" ou "gemini"
-answer = llm.generate(prompt)
+```
+Question → Vecteur → ChromaDB (top 5) → Filtre accès → Prompt → LLM
 ```
 
-## 🔍 Comparatif des stratégies RAG
+**Usage** : Prototypage, tests rapides, cas simples.
+
+### 2. Secure RAG — `secure_rag.py`
+
+**Principe** : Identique au Simple RAG mais avec un refus explicite dans le prompt si l'utilisateur tente d'accéder à des informations non autorisées.
+
+**Usage** : Production, contextes juridiques, données sensibles.
+
+### 3. Hybrid RAG — `hybrid_rag.py`
+
+**Principe** : Recherche sémantique large (k=10) + réordonnancement par score lexical (mots-clés). Retourne les 3 meilleurs après fusion des scores.
+
+```
+Question → ChromaDB (top 10) → Score lexical → Tri → Top 3 → LLM
+```
+
+**Usage** : Amélioration de la précision, réduction des faux positifs sémantiques.
+
+### 4. Modular RAG — `modular_rag.py`
+
+**Principe** : Architecture extensible pour expérimentations (query rewriting, multi-étapes, agents).
+
+**Usage** : R&D, expérimentation de pipelines avancés.
+
+### 5. Reranking RAG — `reranking_rag.py`
+
+**Principe** : Récupère 2×k documents, les reclasse avec un Cross-Encoder (`ms-marco-MiniLM-L-6-v2`), retourne top-k.
+
+```
+Question → ChromaDB (2k docs) → Cross-Encoder scoring → Top k → LLM
+```
+
+**Usage** : Précision maximale, quand la pertinence est critique.
 
 ### Tableau comparatif
 
-| Stratégie | Complexité | Performance | Sécurité | Cas d'usage |
-|-----------|-----------|-------------|----------|-------------|
-| **Simple RAG** | ⭐ Basique | ⭐⭐⭐ Rapide | ⭐⭐ Standard | Prototypage, démos |
-| **Secure RAG** | ⭐⭐ Moyenne | ⭐⭐⭐ Rapide | ⭐⭐⭐⭐⭐ Maximum | Production juridique/santé |
-| **Hybrid RAG** | ⭐⭐⭐ Avancée | ⭐⭐⭐⭐ Optimisée | ⭐⭐⭐ Renforcée | Amélioration précision |
-| **Modular RAG** | ⭐⭐⭐⭐ Complexe | ⭐⭐⭐⭐ Configurable | ⭐⭐⭐⭐ Extensible | R&D, expérimentation |
+| Stratégie | Vitesse | Précision | Complexité | Recommandé pour |
+|-----------|---------|-----------|------------|-----------------|
+| Simple | Rapide | Moyenne | Faible | Tests, démos |
+| Secure | Rapide | Moyenne | Faible | Production |
+| Hybrid | Moyenne | Bonne | Moyenne | Amélioration qualité |
+| Modular | Variable | Variable | Haute | R&D |
+| Reranking | Lente | Excellente | Haute | Précision critique |
 
-### Détail des stratégies
+---
 
-#### 1. Simple RAG ([simple_rag.py](src/rag_strategies/simple_rag.py))
+## Système de sécurité et contrôle d'accès
 
-**Principe** : Recherche sémantique basique (top-k=3) avec filtrage ACL minimal.
+### Authentification
 
-**Avantages** :
-- Simplicité d'implémentation
-- Latence minimale
-- Facile à débugger
+1. L'utilisateur entre son `username` + `password` dans Streamlit
+2. `auth_service.py` vérifie les credentials contre MySQL (bcrypt)
+3. Un token JWT est créé (expiration 1h) et stocké en session
+4. À chaque requête, le JWT est décodé pour extraire le rôle
 
-**Limites** :
-- Pas de réordonnancement
-- Peut manquer des documents pertinents
+### Hiérarchie des accès
 
-#### 2. Secure RAG ([secure_rag.py](src/rag_strategies/secure_rag.py))
-
-**Principe** : Filtrage strict par niveau d'accès + refus explicite si aucun document autorisé.
-
-**Avantages** :
-- ✅ Garantie de conformité (pas de réponse sans source autorisée)
-- ✅ Traçabilité complète des sources
-- ✅ Prompt explicite sur les limites
-
-**Limites** :
-- Peut refuser des requêtes légitimes si ACL trop restrictive
-
-**Code clé** :
-```python
-documents = secure_search(query, user_access_level, k=5)
-if not documents:
-    return []  # Refus explicite
+```
+admin       → confidential (niveau 2) → accès à TOUT
+employee    → internal     (niveau 1) → accès public + internal
+guest       → public       (niveau 0) → accès public uniquement
 ```
 
-#### 3. Hybrid RAG ([hybrid_rag.py](src/rag_strategies/hybrid_rag.py))
-
-**Principe** : Recherche sémantique large (k=10) + réordonnancement lexical (keyword matching).
-
-**Avantages** :
-- ✅ Meilleure précision (combine sémantique + mots-clés)
-- ✅ Réduit les faux positifs sémantiques
-- ✅ Top-3 final après réordonnancement
-
-**Processus** :
-1. Recherche sémantique → 10 candidats
-2. Score lexical par mot-clé
-3. Tri par score → top-3
-
-#### 4. Modular RAG ([modular_rag.py](src/rag_strategies/modular_rag.py))
-
-**Principe** : Architecture extensible pour query rewriting, multi-étapes, agents.
-
-**Caractéristiques** :
-- Recherche large (k=8) avec filtrage à 3
-- Placeholder pour étapes futures :
-  - Query expansion
-  - Re-ranking par modèle
-  - Vérification croisée
-
-**Usage** : Base pour expérimentations avancées (agentic RAG, chain-of-thought retrieval).
-
-### Sélection de la stratégie
-
-Dans l'interface Streamlit, l'utilisateur peut choisir dynamiquement :
+### Règle d'autorisation — `search.py`
 
 ```python
-rag = get_rag_strategy("secure")  # ou "simple", "hybrid", "modular"
+def is_authorized(doc_access_level, user_access_level):
+    return ACCESS_ORDER[user_access_level] >= ACCESS_ORDER[doc_access_level]
 ```
 
-**Recommandation** : `secure` pour production juridique, `hybrid` pour meilleure précision, `simple` pour tests rapides.
+Un utilisateur accède à tous les documents dont le niveau est **inférieur ou égal** au sien.
 
-## 📦 Installation
+### Classification automatique des documents — `prepare_corpus.py`
+
+Les documents sont classifiés automatiquement lors de la préparation du corpus :
+
+| Niveau | Mots-clés déclencheurs |
+|--------|------------------------|
+| `confidential` | payment, fee, price, penalty, damages, termination, liability, confidential, compensation, indemnity |
+| `public` | definition, definitions, purpose, scope |
+| `internal` | tout le reste |
+
+### Comportement du pipeline selon l'accès
+
+| Situation | Comportement |
+|-----------|-------------|
+| Documents autorisés trouvés | LLM répond avec le contexte des documents |
+| Aucun document autorisé | LLM répond uniquement aux questions sur son rôle |
+| Question hors rôle sans docs | Répond : "You do not have access to this type of information." |
+
+---
+
+## Base documentaire
+
+### Source des données
+
+Dataset **SECOP** (Système Électronique de Contrats Publics de Colombie) — contrats administratifs réels entre l'État colombien et des prestataires.
+
+### Statistiques
+
+| Métrique | Valeur |
+|----------|--------|
+| Nombre total de documents | 521 |
+| Niveau `public` | 1 |
+| Niveau `internal` | 518 |
+| Niveau `confidential` | 2 |
+| Taille minimale | 1 098 caractères |
+| Taille maximale | 411 132 caractères |
+| Taille moyenne | 35 907 caractères |
+| Langue des contrats | Espagnol |
+
+### Structure d'un document
+
+```json
+{
+  "text": "texte complet du contrat...",
+  "access_level": "public | internal | confidential",
+  "source": "Contracts-SECOP-NER"
+}
+```
+
+### Embeddings et indexation
+
+- **Modèle d'embedding** : `sentence-transformers/all-MiniLM-L6-v2`
+- **Base vectorielle** : ChromaDB (persistée dans `db/`)
+- **Recherche** : similarité cosinus entre vecteur question et vecteurs documents
+
+---
+
+## Pipeline RAG — Fonctionnement détaillé
+
+### Étape par étape
+
+**1. Question posée par l'utilisateur**
+
+**2. Conversion en vecteur**
+Le modèle `all-MiniLM-L6-v2` transforme la question en vecteur numérique représentant son sens sémantique.
+
+**3. Recherche dans ChromaDB**
+ChromaDB compare le vecteur question avec les 521 vecteurs documents et retourne les k plus proches sémantiquement (pas par mots-clés, mais par sens).
+
+**4. Filtrage par droits d'accès**
+Chaque document retourné est vérifié : si `doc.access_level > user.access_level`, il est exclu.
+
+**5a. Si documents autorisés trouvés**
+```
+Contexte = concaténation des textes des documents autorisés
+Prompt = "Answer using context below: [contexte] Question: [question]"
+Réponse = llm.generate(prompt)
+```
+
+**5b. Si aucun document autorisé**
+```
+Prompt = system_prompt (description du rôle de l'assistant) + question
+Réponse = llm.generate(prompt)
+→ Répond sur son rôle OU refuse poliment
+```
+
+**6. Affichage dans Streamlit**
+Réponse + sources utilisées (expandables).
+
+---
+
+## Support Multi-LLM — Pattern Factory
+
+### Principe
+
+Tous les LLMs implémentent la même interface :
+
+```python
+# base.py
+class LLM(ABC):
+    def generate(self, prompt: str) -> str:
+        ...
+```
+
+Le pipeline appelle uniquement `llm.generate(prompt)` sans savoir quel LLM est derrière.
+
+### Factory
+
+```python
+# factory.py
+def get_llm(name: str):
+    if name == "mistral": return MistralLLM()
+    if name == "llama":   return LlamaLLM()
+    if name == "qwen":    return QwenLLM()
+    if name == "gemini":  return GeminiLLM()
+```
+
+### Avantage
+
+Ajouter un nouveau LLM = créer 1 fichier + ajouter 1 ligne dans `factory.py`. Le reste du code ne change pas.
+
+---
+
+## Installation et démarrage
 
 ### Prérequis
 
 - Python 3.8+
-- 4 GB RAM minimum (8 GB recommandé si usage Ollama)
+- MySQL (via XAMPP ou autre)
+- Ollama installé (pour les modèles locaux)
+- 8 GB RAM minimum recommandés
 
-### Étapes
+### 1. Installer les dépendances
 
-1. **Cloner le projet** :
-```powershell
-git clone <url-du-projet>
-cd rag_legal_project
-```
-
-2. **Créer un environnement virtuel** (Windows PowerShell) :
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-3. **Installer les dépendances** :
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
-## ⚙️ Configuration
-
-### Variables d'environnement requises
+### 2. Configurer l'environnement
 
 Créer un fichier `.env` à la racine :
 
 ```bash
-# OBLIGATOIRE
-JWT_SECRET_KEY=<générer-une-clé-sécurisée>
-
-# Optionnel selon le LLM utilisé
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=AIza...
+JWT_SECRET_KEY=<générer-une-clé-aléatoire>
+GEMINI_API_KEY=AIza...   # Optionnel, seulement si vous utilisez Gemini
 ```
 
-**Générer une clé JWT sécurisée** :
-```powershell
+Générer une clé JWT :
+```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-### Utilisateurs par défaut
+### 3. Configurer la base de données MySQL
 
-Définis dans [src/users.py](src/users.py) :
-
-| Utilisateur | Mot de passe | Rôle | Niveau d'accès |
-|-------------|--------------|------|----------------|
-| `alice` | `alice123` | guest | `public` |
-| `bob` | `bob123` | employee | `internal` |
-| `admin` | `admin123` | admin | `confidential` |
-
-## 🚀 Utilisation
-
-### 1. Préparer le corpus
-
-Si vous avez des contrats bruts dans `data/contracts.jsonl` :
-
-```powershell
-python src/prepare_corpus.py
+```bash
+python scripts/setup_database.py
+python scripts/seed_users.py
 ```
 
-Cela génère `data/contracts_with_access.jsonl` avec classification automatique des niveaux d'accès.
+### 4. Indexer les documents
 
-### 2. Indexer les documents
-
-```powershell
+```bash
 python src/ingestion.py
 ```
 
-Crée les embeddings et peuple ChromaDB dans `db/`.
+### 5. Télécharger les modèles Ollama
 
-### 3. Lancer l'interface
-
-```powershell
-$env:JWT_SECRET_KEY = '<votre-clé>'
-streamlit run src/app.py
+```bash
+ollama pull mistral
+ollama pull llama3.1:8b
+ollama pull qwen3:8b
 ```
 
-Accéder à http://localhost:8501
+### 6. Lancer l'application
 
-### 4. Tester
-
-1. **Login** : Utiliser `admin` / `admin123` pour accès complet
-2. **Sélectionner** :
-   - Stratégie RAG : `secure` (recommandé)
-   - LLM : `gemini` (gratuit) ou `openai` (si clé API)
-3. **Poser une question** : 
-   - Public : "Quelle est la définition de..." 
-   - Confidentiel : "Quelles sont les pénalités de résiliation..."
-
-## 🧪 Tests
-
-Exécuter les tests unitaires :
-
-```powershell
-python -m pytest -q
+```bash
+cd src
+python -m streamlit run app.py
 ```
 
-Tests disponibles :
-- `tests/test_search.py` : Vérification de la logique ACL
-- `tests/test_rag.py` : Validation de la génération de prompts
-
-Pour ajouter des tests :
-```python
-# tests/test_custom.py
-def test_custom_logic():
-    # Votre test
-    assert True
-```
-
-## 🔒 Sécurité
-
-### Authentification
-
-- **JWT** avec expiration (1h par défaut)
-- **Mots de passe** : Support bcrypt (utiliser `scripts/hash_password.py` pour migration)
-- **Variables sensibles** : `.env` (ne jamais commit dans Git)
-
-### Contrôle d'accès
-
-Hiérarchie des niveaux :
-```
-confidential (2) > internal (1) > public (0)
-```
-
-Règle : Un utilisateur `internal` accède à `internal` + `public`, mais pas `confidential`.
-
-Implémentation : [src/search.py](src/search.py#L23-L29)
-
-### Recommandations production
-
-❌ **Ne pas faire** :
-- Stocker mots de passe en clair
-- Exposer `.env` ou `JWT_SECRET_KEY`
-- Utiliser valeurs par défaut en production
-
-✅ **À faire** :
-- Intégrer LDAP/IdP (Active Directory, Okta)
-- Utiliser secrets manager (Azure KeyVault, AWS Secrets)
-- Activer HTTPS
-- Logger les accès (audit trail)
-- Rate limiting sur API LLM
-
-## 📊 Performance
-
-### Benchmarks indicatifs (CPU i7, 16GB RAM)
-
-| Métrique | Simple RAG | Secure RAG | Hybrid RAG |
-|----------|-----------|-----------|-----------|
-| Recherche (ms) | 150 | 180 | 250 |
-| Génération LLM (s) | 1-3 | 1-3 | 1-3 |
-| **Total (s)** | **1.5-3.5** | **1.5-3.5** | **1.5-3.5** |
-
-*Temps de génération dépend fortement du LLM choisi et de la longueur du prompt.*
+Accéder à : http://localhost:8501
 
 ---
 
-## 👥 Gestion des Utilisateurs
+## Utilisation
 
-### Utilisateurs par Défaut
+### Connexion
 
-Après l'installation, 3 comptes sont créés automatiquement :
+| Utilisateur | Mot de passe | Rôle | Accès |
+|-------------|--------------|------|-------|
+| `alice` | `alice123` | guest | public uniquement |
+| `bob` | `bob123` | employee | public + internal |
+| `admin` | `admin123` | admin | tout |
 
-| Utilisateur | Mot de passe | Rôle | Niveau d'accès | Accès aux documents |
-|-------------|--------------|------|----------------|---------------------|
-| **alice** | alice123 | guest | public | ✅ Public uniquement |
-| **bob** | bob123 | employee | internal | ✅ Public + Internal |
-| **admin** | admin123 | admin | confidential | ✅ Tous (Public + Internal + Confidential) |
+### Questions par niveau d'accès
 
-### Ajouter un Nouvel Utilisateur
+**Guest (public)**
+- "What are the general conditions of use of public services?"
+- "What is your role?" *(répondu par le system prompt)*
+- "What can you do?" *(répondu par le system prompt)*
 
-#### **Option 1 : Mode Interactif (Recommandé)**
+**Employee (internal)**
+- "What are the obligations of the parties in the contract?"
+- "What is the scope of services in the contract?"
+- "What are the general terms of the agreement?"
+
+**Admin (confidential)**
+- "What are the payment terms and fees?"
+- "What are the penalties in case of late payment?"
+- "What are the liability clauses?"
+
+### Sélection LLM × RAG
+
+Dans la sidebar Streamlit :
+- **Language Model** : `mistral`, `qwen`, `llama`, `gemini`
+- **RAG Strategy** : `simple`, `secure`, `hybrid`, `modular`
+
+Toutes les combinaisons sont possibles sans modification du code.
+
+---
+
+## Gestion des utilisateurs
+
+### Ajouter un utilisateur
 
 ```bash
 python scripts/add_user.py
 ```
 
-Le script vous guidera étape par étape :
-```
-🔐 AJOUT D'UN NOUVEL UTILISATEUR
-👤 Nom d'utilisateur: charlie
-🔑 Mot de passe: charlie123
-👥 Choisir un rôle (1-3): 2
-📧 Email: charlie@company.com
-✅ Utilisateur 'charlie' créé avec succès !
-```
-
-#### **Option 2 : Mode Ligne de Commande**
-
-```bash
-python scripts/add_user.py <username> <password> <role> [email]
-```
-
-**Exemple** :
+Ou en ligne de commande :
 ```bash
 python scripts/add_user.py charlie charlie123 employee charlie@company.com
 ```
 
-#### **Option 3 : Programmatiquement**
-
-```python
-from scripts.add_user import add_user
-
-add_user("david", "david123", "admin", "david@company.com")
-```
-
-### Rôles et Permissions
-
-| Rôle | Niveau d'accès | Cas d'usage |
-|------|----------------|-------------|
-| **guest** | `public` | Utilisateurs externes, invités, consultants |
-| **employee** | `internal` | Employés de l'entreprise, utilisateurs standards |
-| **admin** | `confidential` | Managers, direction, juristes habilités |
-
-### Modifier un Utilisateur Existant
-
-#### **Changer le mot de passe**
-
-Via MySQL/phpMyAdmin :
-```sql
-UPDATE users 
-SET password_hash = '$2b$12$...'  -- Utiliser bcrypt pour hasher
-WHERE username = 'bob';
-```
-
-⚠️ **Important** : Le mot de passe doit être hashé avec bcrypt !
-
-#### **Changer le rôle**
+### Modifier un rôle (MySQL)
 
 ```sql
-UPDATE users 
-SET role = 'admin' 
-WHERE username = 'bob';
+UPDATE users SET role = 'admin' WHERE username = 'bob';
 ```
 
-#### **Désactiver un utilisateur**
+### Désactiver un utilisateur
 
 ```sql
-UPDATE users 
-SET is_active = FALSE 
-WHERE username = 'alice';
+UPDATE users SET is_active = FALSE WHERE username = 'alice';
 ```
-
-### Lister Tous les Utilisateurs
-
-```bash
-python scripts/check_mysql_setup.py
-```
-
-Ou via MySQL :
-```sql
-SELECT id, username, role, email, is_active, last_login 
-FROM users 
-ORDER BY id;
-```
-
-### Supprimer un Utilisateur
-
-```sql
-DELETE FROM users WHERE username = 'charlie';
-```
-
-⚠️ **Attention** : Cette action est irréversible !
 
 ---
 
-## 🛠️ Développement
+## Ajouter un LLM ou une stratégie RAG
 
 ### Ajouter un nouveau LLM
 
-1. Créer `src/llms/my_llm.py` :
+1. Créer `src/llms/mon_llm.py` :
 ```python
 from .base import LLM
 
-class MyLLM(LLM):
+class MonLLM(LLM):
     def generate(self, prompt: str) -> str:
         # Votre implémentation
-        pass
+        return "réponse"
 ```
 
-2. Enregistrer dans `src/factory.py` :
+2. Ajouter dans `src/factory.py` :
 ```python
+from llms.mon_llm import MonLLM
+
 def get_llm(name: str):
-    if name == "myllm":
-        return MyLLM()
-    # ...
+    if name == "monllm": return MonLLM()
+    ...
+```
+
+3. Ajouter dans `src/app.py` le selectbox :
+```python
+["mistral", "qwen", "llama", "gemini", "monllm"]
 ```
 
 ### Ajouter une stratégie RAG
 
-1. Créer `src/rag_strategies/my_rag.py` héritant de `RAGStrategy`
+1. Créer `src/rag_strategies/ma_strategie.py` héritant de `RAGStrategy`
 2. Implémenter `retrieve()` et `build_prompt()`
-3. Enregistrer dans `factory.py`
+3. Enregistrer dans `factory.py` et `app.py`
 
-## 📝 Contribuer
+---
 
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/amelioration`)
-3. Commit (`git commit -m 'Ajout fonctionnalité X'`)
-4. Push (`git push origin feature/amelioration`)
-5. Ouvrir une Pull Request
+## Stack technique
 
-## 📄 Licence
+| Composant | Technologie |
+|-----------|-------------|
+| Interface | Streamlit |
+| Base vectorielle | ChromaDB |
+| Embeddings | HuggingFace Sentence Transformers (all-MiniLM-L6-v2) |
+| Reranking | Cross-Encoder (ms-marco-MiniLM-L-6-v2) |
+| LLMs locaux | Ollama (Mistral, Llama, Qwen) |
+| LLM cloud | Google Gemini API |
+| Authentification | PyJWT + MySQL + bcrypt |
+| Évaluation | MRR, NDCG@k, Precision@k, F1 sémantique |
+| Visualisation | Plotly + Pandas |
 
-Ce projet est développé dans un cadre R&D académique.
+---
 
-## 🙏 Remerciements
+## Licence
 
-- **LangChain** : Framework RAG
-- **ChromaDB** : Base vectorielle
-- **Sentence Transformers** : Embeddings
-- **Streamlit** : Interface utilisateur
+Projet développé dans un cadre R&D académique — Flavien Vernier.
