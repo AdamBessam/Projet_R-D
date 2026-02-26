@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from pathlib import Path
 import json
 
-from src.benchmark import RAGBenchmark
+from benchmark import RAGBenchmark
 
 
 st.set_page_config(

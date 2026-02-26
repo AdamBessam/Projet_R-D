@@ -11,8 +11,12 @@ ACCESS_ORDER = {
 }
 
 # Chargement unique du modèle d'embeddings
+# _embeddings = HuggingFaceEmbeddings(
+#     model_name="sentence-transformers/all-MiniLM-L6-v2"
+# )
+
 _embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
+    model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
 )
 
 # Chargement unique de la base vectorielle
