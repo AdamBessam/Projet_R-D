@@ -1,7 +1,7 @@
 import json
 from tqdm import tqdm
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings  # ← ancien import
 from langchain_community.vectorstores import Chroma
 
 

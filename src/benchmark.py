@@ -19,7 +19,7 @@ from src.rag_strategies.secure_rag import SecureRAG
 from src.rag_strategies.hybrid_rag import HybridRAG
 from src.rag_strategies.modular_rag import ModularRAG
 from src.llms.openai_llm import OpenAILLM
-from src.llms.ollama_llm import OllamaLLM
+from src.llms.mistral import MistralLLM
 from src.llms.gemini_llm import GeminiLLM
 
 
@@ -40,7 +40,7 @@ class RAGBenchmark:
         # Mapping des LLMs
         self.llms = {
             "openai": OpenAILLM,
-            "ollama": OllamaLLM,
+            "ollama": MistralLLM,
             "gemini": GeminiLLM
         }
         
