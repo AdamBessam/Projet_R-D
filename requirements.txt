@@ -5,7 +5,7 @@ langchain-huggingface
 tqdm
 python-dotenv
 langchain-community
-google-generativeai
+google-genai
 requests
 streamlit
 langchain-chroma

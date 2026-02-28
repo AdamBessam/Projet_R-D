@@ -1,0 +1,119 @@
+version: '3.8'
+
+# =============================================================
+# RAG Legal App - Docker Compose
+# =============================================================
+# Ordre de démarrage :
+#   1. mysql       → BDD utilisateurs (healthcheck)
+#   2. ollama      → Serveur LLM local
+#   3. ollama-init → Pull des modèles (1 seule fois)
+#   4. app         → Streamlit (attend mysql + ollama)
+# =============================================================
+
+services:
+
+  # -----------------------------------------------------------
+  # 1. MySQL — Base de données utilisateurs
+  # -----------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: rag_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}         # depuis .env (doit être identique à ce que l'app utilise)
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_legal_db}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"              # autorise mot de passe vide si MYSQL_PASSWORD=""
+    ports:
+      - "3307:3306"                                 # 3307 côté hôte (3306 pris par WAMP)
+    volumes:
+      - mysql_data:/var/lib/mysql                   # données persistantes
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD --silent 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - rag_network
+
+  # -----------------------------------------------------------
+  # 2. Ollama — Serveur des modèles LLM locaux
+  # -----------------------------------------------------------
+  ollama:
+    image: ollama/ollama
+    container_name: rag_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama                   # modèles persistants (plusieurs Go)
+    networks:
+      - rag_network
+    # Pour activer le GPU NVIDIA (nécessite nvidia-container-toolkit) :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # -----------------------------------------------------------
+  # 3. Ollama Init — Pull des modèles au premier démarrage
+  #    S'exécute une seule fois puis s'arrête (restart: "no")
+  # -----------------------------------------------------------
+  ollama-init:
+    image: ollama/ollama
+    container_name: rag_ollama_init
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434              # pointe vers le service ollama
+    volumes:
+      - ./ollama-init.sh:/init.sh
+      - ollama_data:/root/.ollama                   # partage les modèles avec ollama
+    entrypoint: ["/bin/sh", "/init.sh"]
+    restart: "no"                                   # ne redémarre pas après le pull
+    networks:
+      - rag_network
+
+  # -----------------------------------------------------------
+  # 4. App — Streamlit + Pipeline RAG
+  # -----------------------------------------------------------
+  app:
+    build:
+      context: ..                                   # racine du projet = contexte de build
+      dockerfile: docker/Dockerfile
+    container_name: rag_app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - ../.env                                     # charge toutes les variables d'env
+    environment:
+      MYSQL_HOST: mysql                             # override localhost → nom du service Docker
+      OLLAMA_HOST: http://ollama:11434              # override localhost → nom du service Docker
+    depends_on:
+      mysql:
+        condition: service_healthy                  # attend que MySQL soit prêt
+      ollama:
+        condition: service_started                  # attend qu'Ollama soit lancé
+    volumes:
+      - ../db:/app/db                               # ChromaDB (112 MB, déjà indexé)
+      - ../data:/app/data                           # corpus de documents
+    networks:
+      - rag_network
+
+# =============================================================
+# Volumes persistants
+# =============================================================
+volumes:
+  mysql_data:    # données MySQL (users, schéma)
+  ollama_data:   # modèles LLM (Mistral, Llama, Qwen — plusieurs Go)
+
+# =============================================================
+# Réseau interne
+# =============================================================
+networks:
+  rag_network:
+    driver: bridge

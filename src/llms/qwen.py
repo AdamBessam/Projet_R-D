@@ -1,3 +1,4 @@
+import os
 import requests
 from .base import LLM
 
@@ -5,7 +6,8 @@ class QwenLLM(LLM):
 
     def __init__(self, model="qwen3:8b"):
         self.model = model
-        self.url = "http://localhost:11434/api/generate"
+        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        self.url = f"{ollama_host}/api/generate"
 
     def generate(self, prompt: str) -> str:
         try:

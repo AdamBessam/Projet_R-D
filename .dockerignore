@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Secrets — injectés via docker-compose env_file au runtime
+.env
+
+# Claude workspace
+.claude/
+
+# Données volumineuses montées en volumes Docker
+# (db/ et data/ sont montés via volumes dans docker-compose.yml)
+db/
+data/
+
+# Résultats de benchmark (non nécessaires dans l'image)
+reports/
+
+# Tests (non nécessaires en production)
+tests/
