@@ -89,6 +89,8 @@ class HybridRAG(RAGStrategy):
         - la rareté du terme dans tout le corpus
         - la longueur du doc
         """
+        if not docs:
+          return []
         # Tokenisation du corpus
         corpus = [doc.page_content.lower().split() for doc in docs]
         bm25 = BM25Okapi(corpus)
