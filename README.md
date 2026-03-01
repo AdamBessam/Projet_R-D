@@ -1,11 +1,29 @@
 # RAG Intelligence — Guide d'utilisation
 
+## Configuration du fichier `.env`
+
+Créer un fichier `.env` à la racine du projet avec ce contenu :
+
+```env
+JWT_SECRET_KEY=kqC7oZtbzP583BrYfDLNIo8QjADwAU8h6XdgEItxmZvsEv5IACssJVIXKsmkOUbf
+
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=rag_legal_db
+MYSQL_USER=root
+MYSQL_PASSWORD=
+
+GEMINI_API_KEY=        # Optionnel — uniquement si vous voulez utiliser Gemini
+```
+
+> Toutes les valeurs sont pré-remplies. La seule chose à faire est d'ajouter votre `GEMINI_API_KEY` si vous souhaitez utiliser le modèle Gemini.
+
+---
+
 ## Démarrage rapide (Docker)
 
 ```bash
-# 1. Copier et configurer l'environnement
-cp .env.example .env
-# Optionnel : ajouter GEMINI_API_KEY dans .env pour utiliser Gemini
+# 1. Créer le fichier .env (voir section ci-dessus)
 
 # 2. Lancer tous les services
 cd docker
