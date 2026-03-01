@@ -46,17 +46,9 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama                   # modèles persistants (plusieurs Go)
+      - ollama_data:/root/.ollama                 
     networks:
       - rag_network
-    # Pour activer le GPU NVIDIA (nécessite nvidia-container-toolkit) :
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
 
   # -----------------------------------------------------------
   # 3. Ollama Init — Pull des modèles au premier démarrage
