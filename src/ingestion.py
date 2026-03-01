@@ -177,9 +177,14 @@ def build_vectorstore(
     # Nettoyage de l'ancienne base si elle existe
     if os.path.exists(db_path):
         print(f"  ⚠ Base existante détectée dans '{db_path}'")
-        print("  → Suppression et recréation (modèle d'embedding changé)")
+        print("  → Suppression du contenu et recréation (modèle d'embedding changé)")
         import shutil
-        shutil.rmtree(db_path)
+        for item in os.listdir(db_path):
+            item_path = os.path.join(db_path, item)
+            if os.path.isfile(item_path) or os.path.islink(item_path):
+                os.remove(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
 
     print(f"  Indexation de {len(documents)} documents...")
     print("  (Cette étape peut prendre plusieurs minutes)")

@@ -1,5 +1,4 @@
 # Base utilisateurs simulée (prototype)
-# ⚠️ En production : base de données / LDAP / IdP
 
 USERS_DB = {
     "alice": {

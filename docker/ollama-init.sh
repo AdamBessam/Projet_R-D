@@ -34,7 +34,7 @@ echo "  Mistral 7B prêt ✓"
 echo ""
 
 echo "Téléchargement de Llama 3.1 8B..."
-ollama pull llama3.1
+ollama pull llama3.1:8b
 echo "  Llama 3.1 8B prêt ✓"
 echo ""
 

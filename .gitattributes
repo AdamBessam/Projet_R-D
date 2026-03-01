@@ -1,0 +1,9 @@
+# Force LF line endings for shell scripts (never CRLF)
+*.sh text eol=lf
+
+# Force LF for docker files
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf
+
+# This file itself stays in LF
+.gitattributes text eol=lf
